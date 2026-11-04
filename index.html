@@ -323,4 +323,167 @@
             container.innerHTML = '';
 
             if (videos.length === 0) {
-                container.innerHTML = `<div class="col-span-full text-center py-6 tex
+                container.innerHTML = `<div class="col-span-full text-center py-6 text-slate-400">വീഡിയോകളൊന്നും ചേർത്തിട്ടില്ല.</div>`;
+                return;
+            }
+
+            videos.forEach(v => {
+                const card = document.createElement('div');
+                card.className = 'bg-slate-50 rounded-lg overflow-hidden border border-slate-200 shadow-sm';
+                card.innerHTML = `
+                    <div class="aspect-video w-full">
+                        <iframe class="w-full h-full" src="${v.url}" frameborder="0" allowfullscreen></iframe>
+                    </div>
+                    <div class="p-3 flex justify-end">
+                        <button onclick="deleteVideo(${v.id})" class="text-slate-400 hover:text-red-500 text-xs">
+                            <i class="fa-solid fa-trash-can"></i> ഡിലീറ്റ് ചെയ്യുക
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Add Post Action
+        function handlePublish(e) {
+            e.preventDefault();
+            const pass = document.getElementById('adminPassword').value;
+
+            if (pass !== currentAdminPassword) {
+                alert('തെറ്റായ അഡ്മിൻ പാസ്‌വേഡ്! (Wrong Password)');
+                return;
+            }
+
+            const title = document.getElementById('postTitle').value;
+            const author = document.getElementById('postAuthor').value;
+            const category = document.getElementById('postCategory').value;
+            const content = document.getElementById('postContent').value;
+
+            const newPost = {
+                id: Date.now(),
+                title,
+                author,
+                category,
+                content,
+                date: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+            };
+
+            posts.unshift(newPost);
+            saveData();
+            renderPosts();
+            closePublishModal();
+            document.getElementById('publishForm').reset();
+            alert('രചന വിജയകരമായി പബ്ലിഷ് ചെയ്തു!');
+        }
+
+        // Add Video Action (URL only)
+        function handleVideoAdd(e) {
+            e.preventDefault();
+            const pass = document.getElementById('videoAdminPassword').value;
+
+            if (pass !== currentAdminPassword) {
+                alert('തെറ്റായ അഡ്മിൻ പാസ്‌വേഡ്! (Wrong Password)');
+                return;
+            }
+
+            let url = document.getElementById('videoUrl').value;
+
+            // Convert standard youtube link to embed url if needed
+            if (url.includes('watch?v=')) {
+                url = url.replace('watch?v=', 'embed/');
+            } else if (url.includes('youtu.be/')) {
+                url = url.replace('youtu.be/', 'youtube.com/embed/');
+            }
+
+            videos.unshift({ id: Date.now(), url });
+            saveData();
+            renderVideos();
+            closeVideoModal();
+            document.getElementById('videoForm').reset();
+            alert('വീഡിയോ വിജയകരമായി ആഡ് ചെയ്തു!');
+        }
+
+        // Change Password Action
+        function handlePasswordChange(e) {
+            e.preventDefault();
+            const curr = document.getElementById('currPass').value;
+            const newP = document.getElementById('newPass').value;
+
+            if (curr !== currentAdminPassword) {
+                alert('നിലവിലെ പാസ്‌വേഡ് തെറ്റാണ്!');
+                return;
+            }
+
+            currentAdminPassword = newP;
+            saveData();
+            closeSettingsModal();
+            alert('അഡ്മിൻ പാസ്‌വേഡ് വിജയകരമായി മാറ്റി!');
+        }
+
+        // Delete Actions
+        function deletePost(id) {
+            const pass = prompt('ഡിലീറ്റ് ചെയ്യാൻ അഡ്മിൻ പാസ്‌വേഡ് നൽകുക:');
+            if (pass === currentAdminPassword) {
+                posts = posts.filter(p => p.id !== id);
+                saveData();
+                renderPosts();
+            } else if (pass !== null) {
+                alert('തെറ്റായ പാസ്‌വേഡ്!');
+            }
+        }
+
+        function deleteVideo(id) {
+            const pass = prompt('ഡിലീറ്റ് ചെയ്യാൻ അഡ്മിൻ പാസ്‌വേഡ് നൽകുക:');
+            if (pass === currentAdminPassword) {
+                videos = videos.filter(v => v.id !== id);
+                saveData();
+                renderVideos();
+            } else if (pass !== null) {
+                alert('തെറ്റായ പാസ്‌വേഡ്!');
+            }
+        }
+
+        // Modal Controllers
+        function openPublishModal() { document.getElementById('publishModal').classList.remove('hidden'); }
+        function closePublishModal() { document.getElementById('publishModal').classList.add('hidden'); }
+
+        function openVideoModal() { document.getElementById('videoModal').classList.remove('hidden'); }
+        function closeVideoModal() { document.getElementById('videoModal').classList.add('hidden'); }
+
+        function openSettingsModal() { document.getElementById('settingsModal').classList.remove('hidden'); }
+        function closeSettingsModal() { document.getElementById('settingsModal').classList.add('hidden'); }
+
+        function viewPost(id) {
+            const post = posts.find(p => p.id === id);
+            if (!post) return;
+
+            document.getElementById('viewCategory').innerText = post.category;
+            document.getElementById('viewTitle').innerText = post.title;
+            document.getElementById('viewAuthor').innerText = `എഴുതിയത്: ${post.author} | ${post.date}`;
+            document.getElementById('viewContent').innerText = post.content;
+
+            document.getElementById('viewModal').classList.remove('hidden');
+        }
+        function closeViewModal() { document.getElementById('viewModal').classList.add('hidden'); }
+
+        // Category Filter
+        function filterCategory(cat) {
+            activeCategory = cat;
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('bg-amber-800', 'text-white');
+                btn.classList.add('bg-slate-200', 'text-slate-700');
+            });
+            
+            const activeBtn = event.target;
+            activeBtn.classList.remove('bg-slate-200', 'text-slate-700');
+            activeBtn.classList.add('bg-amber-800', 'text-white');
+
+            renderPosts();
+        }
+
+        // Initial Load
+        renderPosts();
+        renderVideos();
+    </script>
+</body>
+</html>
