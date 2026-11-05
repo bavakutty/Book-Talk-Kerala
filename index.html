@@ -18,9 +18,9 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // നിങ്ങളുടെ ഫയർബേസ് കോൺഫിഗറേഷൻ ഇവിടെ നൽകുക
+       
         const firebaseConfig = {
-            rules_version = '2';
+             rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -29,7 +29,7 @@ service cloud.firestore {
     }
   }
 }
-
+   
         };
 
         const app = initializeApp(firebaseConfig);
@@ -278,7 +278,7 @@ service cloud.firestore {
 
         async function getAdminPassword() {
             try {
-                const passDoc = await getDoc(doc(window.db, "settings", "admin"));
+                const passDoc = await window.getDoc(window.doc(window.db, "settings", "admin"));
                 if (passDoc.exists()) {
                     return passDoc.data().password;
                 }
@@ -290,7 +290,7 @@ service cloud.firestore {
 
         async function fetchPosts() {
             try {
-                const querySnapshot = await getDocs(collection(window.db, "posts"));
+                const querySnapshot = await window.getDocs(window.collection(window.db, "posts"));
                 posts = [];
                 querySnapshot.forEach((docSnap) => {
                     posts.push({ id: docSnap.id, ...docSnap.data() });
@@ -305,7 +305,7 @@ service cloud.firestore {
 
         async function fetchVideos() {
             try {
-                const querySnapshot = await getDocs(collection(window.db, "videos"));
+                const querySnapshot = await window.getDocs(window.collection(window.db, "videos"));
                 videos = [];
                 querySnapshot.forEach((docSnap) => {
                     videos.push({ id: docSnap.id, ...docSnap.data() });
@@ -407,7 +407,7 @@ service cloud.firestore {
             const content = document.getElementById('postContent').value;
 
             try {
-                await addDoc(collection(window.db, "posts"), {
+                await window.addDoc(window.collection(window.db, "posts"), {
                     title,
                     author,
                     category,
@@ -444,7 +444,7 @@ service cloud.firestore {
             }
 
             try {
-                await addDoc(collection(window.db, "videos"), {
+                await window.addDoc(window.collection(window.db, "videos"), {
                     url,
                     timestamp: Date.now()
                 });
@@ -471,7 +471,7 @@ service cloud.firestore {
             }
 
             try {
-                await setDoc(doc(window.db, "settings", "admin"), { password: newP });
+                await window.setDoc(window.doc(window.db, "settings", "admin"), { password: newP });
                 alert('അഡ്മിൻ പാസ്‌വേഡ് വിജയകരമായി മാറ്റി!');
                 closeSettingsModal();
                 document.getElementById('settingsModal').querySelector('form').reset();
@@ -486,7 +486,7 @@ service cloud.firestore {
             const currentPass = await getAdminPassword();
             if (pass === currentPass) {
                 try {
-                    await deleteDoc(doc(window.db, "posts", id));
+                    await window.deleteDoc(window.doc(window.db, "posts", id));
                     await fetchPosts();
                 } catch (e) {
                     alert('ഡിലീറ്റ് ചെയ്യാൻ കഴിഞ്ഞില്ല.');
@@ -501,7 +501,7 @@ service cloud.firestore {
             const currentPass = await getAdminPassword();
             if (pass === currentPass) {
                 try {
-                    await deleteDoc(doc(window.db, "videos", id));
+                    await window.deleteDoc(window.doc(window.db, "videos", id));
                     await fetchVideos();
                 } catch (e) {
                     alert('ഡിലീറ്റ് ചെയ്യാൻ കഴിഞ്ഞില്ല.');
@@ -544,5 +544,3 @@ service cloud.firestore {
     </script>
 </body>
 </html>
-
- 
