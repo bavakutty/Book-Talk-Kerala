@@ -18,8 +18,8 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        //
-const firebaseConfig = {
+        // നിങ്ങളുടെ ഫയർബേസ് കോൺഫിഗറേഷൻ ഇവിടെ നൽകുക
+       const firebaseConfig = {
     apiKey: "rules_version = '2';
 
 service cloud.firestore {
@@ -30,22 +30,28 @@ service cloud.firestore {
   }
 }
 ",
-    authDomain: "book-talk-kerala.firebaseapp.com",
-    projectId: "book-talk-kerala",
-    storageBucket: "book-talk-kerala.appspot.com",
+    authDomain: "kerala-talk.firebaseapp.com",
+    projectId: "kerala-talk",
+    storageBucket: "kerala-talk.appspot.com",
     messagingSenderId: "1234567890",
     appId: "1:123456:web:abc123xyz"
 };
 
-       
+
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+
+        // Make database and firebase functions globally accessible safely
+        window.db = db;
+        window.fetchPostsGlobal = fetchPosts;
+        window.fetchVideosGlobal = fetchVideos;
 
         let posts = [];
         let videos = [];
         let activeCategory = 'all';
 
+        // Initialize App & Fetch Data from Firebase
         async function initApp() {
             await fetchPosts();
             await fetchVideos();
@@ -169,6 +175,7 @@ service cloud.firestore {
             });
         }
 
+        // Add Post Action (Cloud Save)
         async function handlePublish(e) {
             e.preventDefault();
             const pass = document.getElementById('adminPassword').value;
@@ -204,6 +211,7 @@ service cloud.firestore {
         }
         window.handlePublish = handlePublish;
 
+        // Add Video Action (Cloud Save)
         async function handleVideoAdd(e) {
             e.preventDefault();
             const pass = document.getElementById('videoAdminPassword').value;
@@ -237,6 +245,7 @@ service cloud.firestore {
         }
         window.handleVideoAdd = handleVideoAdd;
 
+        // Change Password Action
         async function handlePasswordChange(e) {
             e.preventDefault();
             const curr = document.getElementById('currPass').value;
@@ -259,6 +268,7 @@ service cloud.firestore {
         }
         window.handlePasswordChange = handlePasswordChange;
 
+        // Delete Actions
         async function deletePost(id) {
             const pass = prompt('ഡിലീറ്റ് ചെയ്യാൻ അഡ്മിൻ പാസ്‌വേഡ് നൽകുക:');
             const currentPass = await getAdminPassword();
@@ -291,6 +301,7 @@ service cloud.firestore {
         }
         window.deleteVideo = deleteVideo;
 
+        // Modal Controllers
         window.openPublishModal = function() { document.getElementById('publishModal').classList.remove('hidden'); }
         window.closePublishModal = function() { document.getElementById('publishModal').classList.add('hidden'); }
         window.openVideoModal = function() { document.getElementById('videoModal').classList.remove('hidden'); }
@@ -540,3 +551,5 @@ service cloud.firestore {
     </div>
 </body>
 </html>
+
+ 
