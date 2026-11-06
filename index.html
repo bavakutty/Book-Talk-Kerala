@@ -12,39 +12,423 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Anek+Malayalam:wght@300;400;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Firebase SDKs -->
+   
+    <!-- Firebase SDKs & Global Handlers -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        
+       
         const firebaseConfig = {
-            apiKey: "AIzaSyBxVEshiyxo4DblNeI3EJ9HBpbAFxQgqIQ",
-            authDomain: "keralatalk.firebaseapp.com",
-            projectId: "keralatalk",
+  apiKey: "AIzaSyBxVEshiyxo4DblNeI3EJ9HBpbAFxQgqIQ",
+  authDomain: "keralatalk.firebaseapp.com",
+  projectId: "keralatalk",
+  storageBucket: "keralatalk.firebasestorage.app",
+  messagingSenderId: "812587522136",
+  appId: "1:812587522136:web:b5bacb0abd089607e3d22d"
 
-            storageBucket: "keralatalk.firebasestorage.app",
-
-            messagingSenderId: "812587522136",
-
-            appId: "1:812587522136:web:b5bacb0abd089607e3d22d"
-
-        };
+};
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        window.db = db;
-        window.collection = collection;
-        window.addDoc = addDoc;
-        window.getDocs = getDocs;
-        window.deleteDoc = deleteDoc;
-        window.doc = doc;
-        window.setDoc = setDoc;
-        window.getDoc = getDoc;
-        
-        if(window.initApp) window.initApp();
+        let posts = [];
+        let videos = [];
+        let notices = [];
+        let activeCategory = 'all';
+
+        async function initApp() {
+            await fetchPosts();
+            await fetchVideos();
+            await fetchNotices();
+        }
+        window.initApp = initApp;
+
+        async function getAdminPassword() {
+            try {
+                const passDoc = await getDoc(doc(db, "settings", "admin"));
+                if (passDoc.exists()) {
+                    return passDoc.data().password;
+                }
+            } catch (e) {
+                console.error(e);
+            }
+            return 'admin123';
+        }
+
+        async function fetchPosts() {
+            try {
+                const querySnapshot = await getDocs(collection(db, "posts"));
+                posts = [];
+                querySnapshot.forEach((docSnap) => {
+                    posts.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                posts.sort((a, b) => b.timestamp - a.timestamp);
+                renderPosts();
+            } catch (err) {
+                console.error("Error fetching posts:", err);
+                document.getElementById('postsContainer').innerHTML = `<div class="col-span-full text-center py-10 text-red-400">ഡാറ്റ ലോഡ് ചെയ്യുന്നതിൽ ചെറിയ തടസ്സമുണ്ടായി.</div>`;
+            }
+        }
+
+        async function fetchVideos() {
+            try {
+                const querySnapshot = await getDocs(collection(db, "videos"));
+                videos = [];
+                querySnapshot.forEach((docSnap) => {
+                    videos.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                videos.sort((a, b) => b.timestamp - a.timestamp);
+                renderVideos();
+            } catch (err) {
+                console.error("Error fetching videos:", err);
+            }
+        }
+
+        async function fetchNotices() {
+            try {
+                const querySnapshot = await getDocs(collection(db, "notices"));
+                notices = [];
+                querySnapshot.forEach((docSnap) => {
+                    notices.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                notices.sort((a, b) => b.timestamp - a.timestamp);
+                renderNotices();
+            } catch (err) {
+                console.error("Error fetching notices:", err);
+            }
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('postContent').value = e.target.result;
+            };
+            reader.readAsText(file);
+        }
+        window.handleFileUpload = handleFileUpload;
+
+        function renderPosts() {
+            const container = document.getElementById('postsContainer');
+            if(!container) return;
+            container.innerHTML = '';
+
+            const filteredPosts = activeCategory === 'all' ? posts : posts.filter(p => p.category === activeCategory);
+
+            if (filteredPosts.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center py-10 text-slate-400">ഈ വിഭാഗത്തിൽ രചനകളൊന്നും ലഭ്യമായിട്ടില്ല.</div>`;
+                return;
+            }
+
+            filteredPosts.forEach(post => {
+                const card = document.createElement('div');
+                card.className = 'bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition flex flex-col justify-between';
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="px-2.5 py-0.5 bg-amber-100 text-amber-800 text-xs font-semibold rounded-full">${post.category}</span>
+                            <span class="text-xs text-slate-400">${post.date}</span>
+                        </div>
+                        <h3 class="font-bold text-lg text-slate-800 mb-1 hover:text-amber-800 cursor-pointer" onclick="window.viewPost('${post.id}')">${post.title}</h3>
+                        <p class="text-xs text-slate-500 mb-3">എഴുതിയത്: <span class="font-medium text-slate-700">${post.author}</span></p>
+                        <p class="text-slate-600 text-sm line-clamp-3 leading-relaxed mb-4">${post.content}</p>
+                    </div>
+                    <div class="flex justify-between items-center border-t border-slate-100 pt-3">
+                        <button onclick="window.viewPost('${post.id}')" class="text-amber-800 hover:text-amber-900 text-xs font-bold flex items-center gap-1">
+                            പൂർണ്ണമായി വായിക്കുക <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                        </button>
+                        <button onclick="window.deletePost('${post.id}')" class="text-slate-300 hover:text-red-500 text-xs" title="ഡിലീറ്റ് ചെയ്യുക">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderVideos() {
+            const container = document.getElementById('videosContainer');
+            if(!container) return;
+            container.innerHTML = '';
+
+            if (videos.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center py-6 text-slate-400">വീഡിയോകളൊന്നും ചേർത്തിട്ടില്ല.</div>`;
+                return;
+            }
+
+            videos.forEach(v => {
+                const card = document.createElement('div');
+                card.className = 'bg-slate-50 rounded-lg overflow-hidden border border-slate-200 shadow-sm';
+                card.innerHTML = `
+                    <div class="aspect-video w-full">
+                        <iframe class="w-full h-full" src="${v.url}" frameborder="0" allowfullscreen></iframe>
+                    </div>
+                    <div class="p-3 flex justify-end">
+                        <button onclick="window.deleteVideo('${v.id}')" class="text-slate-400 hover:text-red-500 text-xs">
+                            <i class="fa-solid fa-trash-can"></i> ഡിലീറ്റ് ചെയ്യുക
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderNotices() {
+            const container = document.getElementById('noticesContainer');
+            if(!container) return;
+            container.innerHTML = '';
+
+            if (notices.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center py-6 text-slate-400">പോസ്റ്ററുകളോ നോട്ടീസുകളോ ഇല്ല.</div>`;
+                return;
+            }
+
+            notices.forEach(n => {
+                const card = document.createElement('div');
+                card.className = 'bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between';
+               
+                let mediaElement = '';
+                if(n.fileType && n.fileType.startsWith('image/')) {
+                    mediaElement = `<img src="${n.fileData}" alt="${n.title}" class="w-full h-48 object-cover rounded-lg mb-3 cursor-pointer" onclick="window.open('${n.fileData}')">`;
+                } else if(n.fileType === 'application/pdf') {
+                    mediaElement = `<div class="bg-red-50 border border-red-200 p-4 rounded-lg text-center mb-3 flex flex-col items-center justify-center h-48">
+                        <i class="fa-solid fa-file-pdf text-red-600 text-4xl mb-2"></i>
+                        <span class="text-xs font-semibold text-red-800 mb-2">PDF Document</span>
+                        <a href="${n.fileData}" download="${n.title}.pdf" class="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700">ഡൗൺലോഡ് / കാണുക</a>
+                    </div>`;
+                }
+
+                card.innerHTML = `
+                    <div>
+                        ${mediaElement}
+                        <h3 class="font-bold text-slate-800 mb-1">${n.title}</h3>
+                        <p class="text-xs text-slate-400 mb-3">${n.date}</p>
+                    </div>
+                    <div class="flex justify-end border-t pt-2">
+                        <button onclick="window.deleteNotice('${n.id}')" class="text-slate-400 hover:text-red-500 text-xs">
+                            <i class="fa-solid fa-trash-can"></i> ഡിലീറ്റ് ചെയ്യുക
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        async function handlePublish(e) {
+            e.preventDefault();
+            const pass = document.getElementById('adminPassword').value;
+            const currentPass = await getAdminPassword();
+
+            if (pass !== currentPass) {
+                alert('തെറ്റായ അഡ്മിൻ പാസ്‌വേഡ്!');
+                return;
+            }
+
+            const title = document.getElementById('postTitle').value;
+            const author = document.getElementById('postAuthor').value;
+            const category = document.getElementById('postCategory').value;
+            const content = document.getElementById('postContent').value;
+
+            try {
+                await addDoc(collection(db, "posts"), {
+                    title,
+                    author,
+                    category,
+                    content,
+                    timestamp: Date.now(),
+                    date: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+                });
+
+                alert('രചന വിജയകരമായി പബ്ലിഷ് ചെയ്തു!');
+                window.closePublishModal();
+                document.getElementById('publishForm').reset();
+                await fetchPosts();
+            } catch (err) {
+                alert('പബ്ലിഷ് ചെയ്യുന്നതിൽ പരാജയപ്പെട്ടു: ' + err.message);
+            }
+        }
+        window.handlePublish = handlePublish;
+
+        async function handleVideoAdd(e) {
+            e.preventDefault();
+            const pass = document.getElementById('videoAdminPassword').value;
+            const currentPass = await getAdminPassword();
+
+            if (pass !== currentPass) {
+                alert('തെറ്റായ അഡ്മിൻ പാസ്‌വേഡ്!');
+                return;
+            }
+
+            let url = document.getElementById('videoUrl').value;
+            if (url.includes('watch?v=')) {
+                url = url.replace('watch?v=', 'embed/');
+            } else if (url.includes('youtu.be/')) {
+                url = url.replace('youtu.be/', 'youtube.com/embed/');
+            }
+
+            try {
+                await addDoc(collection(db, "videos"), {
+                    url,
+                    timestamp: Date.now()
+                });
+
+                alert('വീഡിയോ വിജയകരമായി ആഡ് ചെയ്തു!');
+                window.closeVideoModal();
+                document.getElementById('videoForm').reset();
+                await fetchVideos();
+            } catch (err) {
+                alert('വീഡിയോ ആഡ് ചെയ്യുന്നതിൽ പരാജയപ്പെട്ടു: ' + err.message);
+            }
+        }
+        window.handleVideoAdd = handleVideoAdd;
+
+        // Notice / Poster Upload Handler
+        async function handleNoticeAdd(e) {
+            e.preventDefault();
+            const pass = document.getElementById('noticeAdminPassword').value;
+            const currentPass = await getAdminPassword();
+
+            if (pass !== currentPass) {
+                alert('തെറ്റായ അഡ്മിൻ പാസ്‌വേഡ്!');
+                return;
+            }
+
+            const title = document.getElementById('noticeTitle').value;
+            const fileInput = document.getElementById('noticeFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('ദയവായി ഒരു ഫയൽ (Image അല്ലെങ്കിൽ PDF) തിരഞ്ഞെടുക്കുക!');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async function(event) {
+                const base64Data = event.target.result;
+                try {
+                    await addDoc(collection(db, "notices"), {
+                        title,
+                        fileData: base64Data,
+                        fileType: file.type,
+                        timestamp: Date.now(),
+                        date: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+                    });
+
+                    alert('പോസ്റ്റർ/നോട്ടീസ് വിജയകരമായി അപ്‌ലോഡ് ചെയ്തു!');
+                    window.closeNoticeModal();
+                    document.getElementById('noticeForm').reset();
+                    await fetchNotices();
+                } catch (err) {
+                    alert('അപ്‌ലോഡ് ചെയ്യുന്നതിൽ പരാജയപ്പെട്ടു: ' + err.message);
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+        window.handleNoticeAdd = handleNoticeAdd;
+
+        async function handlePasswordChange(e) {
+            e.preventDefault();
+            const curr = document.getElementById('currPass').value;
+            const newP = document.getElementById('newPass').value;
+            const currentPass = await getAdminPassword();
+
+            if (curr !== currentPass) {
+                alert('നിലവിലെ പാസ്‌വേഡ് തെറ്റാണ്!');
+                return;
+            }
+
+            try {
+                await setDoc(doc(db, "settings", "admin"), { password: newP });
+                alert('അഡ്മിൻ പാസ്‌വേഡ് വിജയകരമായി മാറ്റി!');
+                window.closeSettingsModal();
+                document.getElementById('settingsModal').querySelector('form').reset();
+            } catch (err) {
+                alert('പാസ്‌വേഡ് മാറ്റാൻ കഴിഞ്ഞില്ല: ' + err.message);
+            }
+        }
+        window.handlePasswordChange = handlePasswordChange;
+
+        async function deletePost(id) {
+            const pass = prompt('ഡിലീറ്റ് ചെയ്യാൻ അഡ്മിൻ പാസ്‌വേഡ് നൽകുക:');
+            const currentPass = await getAdminPassword();
+            if (pass === currentPass) {
+                try {
+                    await deleteDoc(doc(db, "posts", id));
+                    await fetchPosts();
+                } catch (e) {
+                    alert('ഡിലീറ്റ് ചെയ്യാൻ കഴിഞ്ഞില്ല.');
+                }
+            } else if (pass !== null) {
+                alert('തെറ്റായ പാസ്‌വേഡ്!');
+            }
+        }
+        window.deletePost = deletePost;
+
+        async function deleteVideo(id) {
+            const pass = prompt('ഡിലീറ്റ് ചെയ്യാൻ അഡ്മിൻ പാസ്‌വേഡ് നൽകുക:');
+            const currentPass = await getAdminPassword();
+            if (pass === currentPass) {
+                try {
+                    await deleteDoc(doc(db, "videos", id));
+                    await fetchVideos();
+                } catch (e) {
+                    alert('ഡിലീറ്റ് ചെയ്യാൻ കഴിഞ്ഞില്ല.');
+                }
+            } else if (pass !== null) {
+                alert('തെറ്റായ പാസ്‌വേഡ്!');
+            }
+        }
+        window.deleteVideo = deleteVideo;
+
+        async function deleteNotice(id) {
+            const pass = prompt('ഡിലീറ്റ് ചെയ്യാൻ അഡ്മിൻ പാസ്‌വേഡ് നൽകുക:');
+            const currentPass = await getAdminPassword();
+            if (pass === currentPass) {
+                try {
+                    await deleteDoc(doc(db, "notices", id));
+                    await fetchNotices();
+                } catch (e) {
+                    alert('ഡിലീറ്റ് ചെയ്യാൻ കഴിഞ്ഞില്ല.');
+                }
+            } else if (pass !== null) {
+                alert('തെറ്റായ പാസ്‌വേഡ്!');
+            }
+        }
+        window.deleteNotice = deleteNotice;
+
+        window.openPublishModal = function() { document.getElementById('publishModal').classList.remove('hidden'); }
+        window.closePublishModal = function() { document.getElementById('publishModal').classList.add('hidden'); }
+        window.openVideoModal = function() { document.getElementById('videoModal').classList.remove('hidden'); }
+        window.closeVideoModal = function() { document.getElementById('videoModal').classList.add('hidden'); }
+        window.openNoticeModal = function() { document.getElementById('noticeModal').classList.remove('hidden'); }
+        window.closeNoticeModal = function() { document.getElementById('noticeModal').classList.add('hidden'); }
+        window.openSettingsModal = function() { document.getElementById('settingsModal').classList.remove('hidden'); }
+        window.closeSettingsModal = function() { document.getElementById('settingsModal').classList.add('hidden'); }
+
+        window.viewPost = function(id) {
+            const post = posts.find(p => p.id === id);
+            if (!post) return;
+
+            document.getElementById('viewCategory').innerText = post.category;
+            document.getElementById('viewTitle').innerText = post.title;
+            document.getElementById('viewAuthor').innerText = `എഴുതിയത്: ${post.author} | ${post.date}`;
+            document.getElementById('viewContent').innerText = post.content;
+            document.getElementById('viewModal').classList.remove('hidden');
+        }
+        window.closeViewModal = function() { document.getElementById('viewModal').classList.add('hidden'); }
+
+        window.filterCategory = function(cat) {
+            activeCategory = cat;
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('bg-amber-800', 'text-white');
+                btn.classList.add('bg-slate-200', 'text-slate-700');
+            });
+            event.target.classList.remove('bg-slate-200', 'text-slate-700');
+            event.target.classList.add('bg-amber-800', 'text-white');
+            renderPosts();
+        }
     </script>
 
     <style>
@@ -60,7 +444,7 @@
         }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between">
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between" onload="if(window.initApp) window.initApp();">
 
     <!-- Header Section -->
     <header class="bg-amber-900 text-amber-50 shadow-md sticky top-0 z-50">
@@ -69,12 +453,12 @@
                 <h1 class="text-3xl font-bold tracking-wide">BOOK TALK KERALA</h1>
                 <p class="text-amber-200 text-sm">ഡിജിറ്റൽ സാഹിത്യ മാഗസിൻ</p>
             </div>
-            
+           
             <div class="flex items-center gap-3">
-                <button onclick="openPublishModal()" class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 shadow">
+                <button onclick="window.openPublishModal()" class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 shadow">
                     <i class="fa-solid fa-pen-to-square"></i> രചന പബ്ലിഷ് ചെയ്യുക
                 </button>
-                <button onclick="openSettingsModal()" class="bg-amber-950 hover:bg-black text-amber-200 px-3 py-2 rounded-lg text-sm font-semibold transition border border-amber-700" title="Password Settings">
+                <button onclick="window.openSettingsModal()" class="bg-amber-950 hover:bg-black text-amber-200 px-3 py-2 rounded-lg text-sm font-semibold transition border border-amber-700" title="Password Settings">
                     <i class="fa-solid fa-gear"></i> സെറ്റിംഗ്സ്
                 </button>
             </div>
@@ -84,21 +468,30 @@
     <!-- Main Body Container -->
     <main class="max-w-6xl mx-auto px-4 py-8 flex-grow w-full">
 
-        <!-- Youtube Channels & Submissions Banner -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <!-- Youtube Channels, Facebook & Submissions Banner -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
             <a href="https://youtube.com/@ReelAndReadChannel" target="_blank" class="bg-gradient-to-r from-red-600 to-red-700 text-white p-5 rounded-xl shadow-md hover:shadow-lg transition transform hover:-translate-y-1 flex items-center gap-4">
-                <i class="fa-brands fa-youtube text-4xl"></i>
+                <i class="fa-brands fa-youtube text-3xl"></i>
                 <div>
-                    <h3 class="font-bold text-lg">Reel & Read</h3>
-                    <p class="text-xs text-red-100">യൂട്യൂബ് ചാനൽ സന്ദർശിക്കുക <i class="fa-solid fa-arrow-right text-xs ml-1"></i></p>
+                    <h3 class="font-bold text-base">Reel & Read</h3>
+                    <p class="text-xs text-red-100">യൂട്യൂബ് ചാനൽ <i class="fa-solid fa-arrow-right text-xs ml-1"></i></p>
                 </div>
             </a>
 
             <a href="https://youtube.com/@booktalk-thebigtalk" target="_blank" class="bg-gradient-to-r from-red-700 to-red-800 text-white p-5 rounded-xl shadow-md hover:shadow-lg transition transform hover:-translate-y-1 flex items-center gap-4">
-                <i class="fa-brands fa-youtube text-4xl"></i>
+                <i class="fa-brands fa-youtube text-3xl"></i>
                 <div>
-                    <h3 class="font-bold text-lg">Book Talk The Big Talk</h3>
-                    <p class="text-xs text-red-100">യൂട്യൂബ് ചാനൽ സന്ദർശിക്കുക <i class="fa-solid fa-arrow-right text-xs ml-1"></i></p>
+                    <h3 class="font-bold text-base">Book Talk Big Talk</h3>
+                    <p class="text-xs text-red-100">യൂട്യൂബ് ചാനൽ <i class="fa-solid fa-arrow-right text-xs ml-1"></i></p>
+                </div>
+            </a>
+
+            <!-- Facebook Page Link -->
+            <a href="https://www.facebook.com" target="_blank" class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-5 rounded-xl shadow-md hover:shadow-lg transition transform hover:-translate-y-1 flex items-center gap-4">
+                <i class="fa-brands fa-facebook text-3xl"></i>
+                <div>
+                    <h3 class="font-bold text-base">മാധ്യമ പഠന കേന്ദ്രം</h3>
+                    <p class="text-xs text-blue-100">ഫേസ്ബുക്ക് പേജ് <i class="fa-solid fa-arrow-right text-xs ml-1"></i></p>
                 </div>
             </a>
 
@@ -115,12 +508,12 @@
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-200 pb-3 mb-6 gap-3">
             <h2 class="text-2xl font-bold text-slate-800">പ്രസിദ്ധീകരിച്ചവ</h2>
             <div class="flex flex-wrap gap-2">
-                <button onclick="filterCategory('all')" id="btn-all" class="category-btn active px-3 py-1 text-sm rounded-full bg-amber-800 text-white font-medium">എല്ലാം</button>
-                <button onclick="filterCategory('കഥ')" id="btn-story" class="category-btn px-3 py-1 text-sm rounded-full bg-slate-200 text-slate-700 hover:bg-slate-300 font-medium">കഥകൾ</button>
-                <button onclick="filterCategory('കവിത')" id="btn-poem" class="category-btn px-3 py-1 text-sm rounded-full bg-slate-200 text-slate-700 hover:bg-slate-300 font-medium">കവിതകൾ</button>
-                <button onclick="filterCategory('ലേഖനം')" id="btn-article" class="category-btn px-3 py-1 text-sm rounded-full bg-slate-200 text-slate-700 hover:bg-slate-300 font-medium">ലേഖനങ്ങൾ</button>
-                <button onclick="filterCategory('വാർത്ത')" id="btn-news" class="category-btn px-3 py-1 text-sm rounded-full bg-slate-200 text-slate-700 hover:bg-slate-300 font-medium">വാർത്തകൾ</button>
-                <button onclick="filterCategory('നിരൂപണം')" id="btn-review" class="category-btn px-3 py-1 text-sm rounded-full bg-slate-200 text-slate-700 hover:bg-slate-300 font-medium">നിരൂപണങ്ങൾ</button>
+                <button onclick="window.filterCategory('all')" id="btn-all" class="category-btn active px-3 py-1 text-sm rounded-full bg-amber-800 text-white font-medium">എല്ലാം</button>
+                <button onclick="window.filterCategory('കഥ')" id="btn-story" class="category-btn px-3 py-1 text-sm rounded-full bg-slate-200 text-slate-700 hover:bg-slate-300 font-medium">കഥകൾ</button>
+                <button onclick="window.filterCategory('കവിത')" id="btn-poem" class="category-btn px-3 py-1 text-sm rounded-full bg-slate-200 text-slate-700 hover:bg-slate-300 font-medium">കവിതകൾ</button>
+                <button onclick="window.filterCategory('ലേഖനം')" id="btn-article" class="category-btn px-3 py-1 text-sm rounded-full bg-slate-200 text-slate-700 hover:bg-slate-300 font-medium">ലേഖനങ്ങൾ</button>
+                <button onclick="window.filterCategory('വാർത്ത')" id="btn-news" class="category-btn px-3 py-1 text-sm rounded-full bg-slate-200 text-slate-700 hover:bg-slate-300 font-medium">വാർത്തകൾ</button>
+                <button onclick="window.filterCategory('നിരൂപണം')" id="btn-review" class="category-btn px-3 py-1 text-sm rounded-full bg-slate-200 text-slate-700 hover:bg-slate-300 font-medium">നിരൂപണങ്ങൾ</button>
             </div>
         </div>
 
@@ -129,13 +522,29 @@
             <div class="col-span-full text-center py-10 text-slate-400">ഡാറ്റ ലോഡ് ചെയ്യുന്നു...</div>
         </div>
 
+        <!-- Notices & Posters Section -->
+        <div class="mt-12 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-3">
+                <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-bullhorn text-amber-700"></i> നോട്ടീസുകൾ & പോസ്റ്ററുകൾ (Notices / Posters)
+                </h2>
+                <button onclick="window.openNoticeModal()" class="bg-amber-700 hover:bg-amber-800 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-upload"></i> പുതിയ പോസ്റ്റർ/നോട്ടീസ് ആഡ് ചെയ്യുക
+                </button>
+            </div>
+
+            <div id="noticesContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="col-span-full text-center py-6 text-slate-400">വിവരങ്ങൾ ലോഡ് ചെയ്യുന്നു...</div>
+            </div>
+        </div>
+
         <!-- Video Gallery Section -->
         <div class="mt-12 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
             <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-3">
                 <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
                     <i class="fa-solid fa-circle-play text-red-600"></i> വീഡിയോകൾ (Videos)
                 </h2>
-                <button onclick="openVideoModal()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                <button onclick="window.openVideoModal()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
                     <i class="fa-solid fa-plus"></i> പുതിയ വീഡിയോ ആഡ് ചെയ്യുക
                 </button>
             </div>
@@ -150,18 +559,18 @@
     <!-- Footer -->
     <footer class="bg-slate-900 text-slate-400 py-6 border-t border-slate-800 text-center text-sm">
         <p>© 2026 <strong>BOOK TALK KERALA</strong>. All Rights Reserved.</p>
-        <p class="text-xs text-slate-500 mt-1">രചനകൾ അയക്കേണ്ട മെയിൽ: <a href="mailto:madhyamapadanakendram@gmail.com" class="text-amber-400 underline">madhyamapadanakendram@gmail.com</a></p>
+        <p class="text-xs text-slate-500 mt-1">ഫേസ്ബുക്ക്: <a href="https://www.facebook.com" target="_blank" class="text-blue-400 underline">മാധ്യമ പഠന കേന്ദ്രം</a></p>
     </footer>
 
     <!-- Publish Article Modal -->
     <div id="publishModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
         <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-            <button onclick="closePublishModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg">
+            <button onclick="window.closePublishModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg">
                 <i class="fa-solid fa-xmark"></i>
             </button>
             <h3 class="text-xl font-bold text-slate-800 mb-4 pb-2 border-b">പുതിയ രചന പബ്ലിഷ് ചെയ്യുക</h3>
-            
-            <form id="publishForm" onsubmit="handlePublish(event)" class="space-y-4">
+           
+            <form id="publishForm" onsubmit="window.handlePublish(event)" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">വിഭാഗം (Category)</label>
                     <select id="postCategory" class="w-full border border-slate-300 p-2.5 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none">
@@ -183,10 +592,10 @@
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">ഉള്ളടക്കം (Copy & Paste ചെയ്യാം അല്ലെങ്കിൽ ഫയൽ അറ്റാച്ച് ചെയ്യാം)</label>
                     <textarea id="postContent" rows="5" placeholder="കഥയോ ലേഖനമോ ഇവിടെ പേസ്റ്റ് ചെയ്യുക..." class="w-full border border-slate-300 p-2.5 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none mb-2"></textarea>
-                    
+                   
                     <div class="bg-amber-50 border border-amber-200 p-3 rounded-lg text-xs">
-                        ഫയൽ അറ്റാച്ച് ചെയ്യുക (.txt, .doc, .docx): 
-                        <input type="file" id="postFile" accept=".txt,.doc,.docx" onchange="handleFileUpload(event)" class="mt-1 text-slate-600 w-full">
+                        ഫയൽ അറ്റാച്ച് ചെയ്യുക (.txt, .doc, .docx):
+                        <input type="file" id="postFile" accept=".txt,.doc,.docx" onchange="window.handleFileUpload(event)" class="mt-1 text-slate-600 w-full">
                     </div>
                 </div>
                 <div>
@@ -194,8 +603,37 @@
                     <input type="password" id="adminPassword" required placeholder="പാസ്‌വേഡ് എന്റർ ചെയ്യുക" class="w-full border border-amber-300 p-2.5 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none bg-amber-50">
                 </div>
                 <div class="pt-2 flex justify-end gap-2">
-                    <button type="button" onclick="closePublishModal()" class="px-4 py-2 border rounded-lg text-slate-600 hover:bg-slate-100 text-sm">റദ്ദാക്കുക</button>
+                    <button type="button" onclick="window.closePublishModal()" class="px-4 py-2 border rounded-lg text-slate-600 hover:bg-slate-100 text-sm">റദ്ദാക്കുക</button>
                     <button type="submit" class="px-5 py-2 bg-amber-800 text-white rounded-lg hover:bg-amber-900 text-sm font-semibold">പ്രസിദ്ധീകരിക്കുക</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Notice / Poster Modal -->
+    <div id="noticeModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+            <button onclick="window.closeNoticeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <h3 class="text-xl font-bold text-slate-800 mb-4 pb-2 border-b">പോസ്റ്റർ / നോട്ടീസ് അപ്‌ലോഡ് ചെയ്യുക</h3>
+           
+            <form id="noticeForm" onsubmit="window.handleNoticeAdd(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">തലക്കെട്ട് (Title)</label>
+                    <input type="text" id="noticeTitle" required placeholder="ഉദാ: വാർഷിക സമ്മേളന നോട്ടീസ്" class="w-full border border-slate-300 p-2.5 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">ഫയൽ തിരഞ്ഞെടുക്കുക (Image അല്ലെങ്കിൽ PDF)</label>
+                    <input type="file" id="noticeFile" accept="image/*,application/pdf" required class="w-full border border-slate-300 p-2 rounded-lg text-sm text-slate-600 bg-slate-50">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-amber-900 mb-1 font-semibold">അഡ്മിൻ പാസ്‌വേഡ് (Admin Password)</label>
+                    <input type="password" id="noticeAdminPassword" required placeholder="പാസ്‌വേഡ് എന്റർ ചെയ്യുക" class="w-full border border-amber-300 p-2.5 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none bg-amber-50">
+                </div>
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" onclick="window.closeNoticeModal()" class="px-4 py-2 border rounded-lg text-slate-600 hover:bg-slate-100 text-sm">റദ്ദാക്കുക</button>
+                    <button type="submit" class="px-5 py-2 bg-amber-700 text-white rounded-lg hover:bg-amber-800 text-sm font-semibold">അപ്‌ലോഡ് ചെയ്യുക</button>
                 </div>
             </form>
         </div>
@@ -204,12 +642,12 @@
     <!-- Add Video Modal -->
     <div id="videoModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
-            <button onclick="closeVideoModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg">
+            <button onclick="window.closeVideoModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg">
                 <i class="fa-solid fa-xmark"></i>
             </button>
             <h3 class="text-xl font-bold text-slate-800 mb-4 pb-2 border-b">വീഡിയോ ആഡ് ചെയ്യുക</h3>
-            
-            <form id="videoForm" onsubmit="handleVideoAdd(event)" class="space-y-4">
+           
+            <form id="videoForm" onsubmit="window.handleVideoAdd(event)" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">YouTube Link / URL</label>
                     <input type="url" id="videoUrl" required placeholder="https://www.youtube.com/watch?v=..." class="w-full border border-slate-300 p-2.5 rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none">
@@ -219,7 +657,7 @@
                     <input type="password" id="videoAdminPassword" required placeholder="പാസ്‌വേഡ് എന്റർ ചെയ്യുക" class="w-full border border-amber-300 p-2.5 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none bg-amber-50">
                 </div>
                 <div class="pt-2 flex justify-end gap-2">
-                    <button type="button" onclick="closeVideoModal()" class="px-4 py-2 border rounded-lg text-slate-600 hover:bg-slate-100 text-sm">റദ്ദാക്കുക</button>
+                    <button type="button" onclick="window.closeVideoModal()" class="px-4 py-2 border rounded-lg text-slate-600 hover:bg-slate-100 text-sm">റദ്ദാക്കുക</button>
                     <button type="submit" class="px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-semibold">ആഡ് ചെയ്യുക</button>
                 </div>
             </form>
@@ -229,12 +667,12 @@
     <!-- Password Settings Modal -->
     <div id="settingsModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
         <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl relative">
-            <button onclick="closeSettingsModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg">
+            <button onclick="window.closeSettingsModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg">
                 <i class="fa-solid fa-xmark"></i>
             </button>
             <h3 class="text-xl font-bold text-slate-800 mb-4 pb-2 border-b">പാസ്‌വേഡ് മാറ്റുക (Settings)</h3>
-            
-            <form onsubmit="handlePasswordChange(event)" class="space-y-4">
+           
+            <form onsubmit="window.handlePasswordChange(event)" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">നിലവിലെ പാസ്‌വേഡ്</label>
                     <input type="password" id="currPass" required class="w-full border border-slate-300 p-2 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none">
@@ -244,7 +682,7 @@
                     <input type="password" id="newPass" required class="w-full border border-slate-300 p-2 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none">
                 </div>
                 <div class="pt-2 flex justify-end gap-2">
-                    <button type="button" onclick="closeSettingsModal()" class="px-4 py-2 border rounded-lg text-slate-600 hover:bg-slate-100 text-sm">റദ്ദാക്കുക</button>
+                    <button type="button" onclick="window.closeSettingsModal()" class="px-4 py-2 border rounded-lg text-slate-600 hover:bg-slate-100 text-sm">റദ്ദാക്കുക</button>
                     <button type="submit" class="px-5 py-2 bg-amber-800 text-white rounded-lg hover:bg-amber-900 text-sm font-semibold">സേവ് ചെയ്യുക</button>
                 </div>
             </form>
@@ -254,7 +692,7 @@
     <!-- View Post Modal -->
     <div id="viewModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
         <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-            <button onclick="closeViewModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg">
+            <button onclick="window.closeViewModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg">
                 <i class="fa-solid fa-xmark"></i>
             </button>
             <span id="viewCategory" class="px-3 py-1 bg-amber-100 text-amber-800 text-xs font-semibold rounded-full uppercase"></span>
@@ -263,285 +701,7 @@
             <div id="viewContent" class="text-slate-700 leading-relaxed whitespace-pre-line text-base"></div>
         </div>
     </div>
-
-    <!-- Frontend Script Logic -->
-    <script>
-        let posts = [];
-        let videos = [];
-        let activeCategory = 'all';
-
-        // Initialize App & Fetch Data from Firebase
-        window.initApp = async function() {
-            await fetchPosts();
-            await fetchVideos();
-        }
-
-        async function getAdminPassword() {
-            try {
-                const passDoc = await window.getDoc(window.doc(window.db, "settings", "admin"));
-                if (passDoc.exists()) {
-                    return passDoc.data().password;
-                }
-            } catch (e) {
-                console.error(e);
-            }
-            return 'admin123';
-        }
-
-        async function fetchPosts() {
-            try {
-                const querySnapshot = await window.getDocs(window.collection(window.db, "posts"));
-                posts = [];
-                querySnapshot.forEach((docSnap) => {
-                    posts.push({ id: docSnap.id, ...docSnap.data() });
-                });
-                posts.sort((a, b) => b.timestamp - a.timestamp);
-                renderPosts();
-            } catch (err) {
-                console.error("Error fetching posts:", err);
-                document.getElementById('postsContainer').innerHTML = `<div class="col-span-full text-center py-10 text-red-400">ഡാറ്റ ലോഡ് ചെയ്യുന്നതിൽ ചെറിയ തടസ്സമുണ്ടായി.</div>`;
-            }
-        }
-
-        async function fetchVideos() {
-            try {
-                const querySnapshot = await window.getDocs(window.collection(window.db, "videos"));
-                videos = [];
-                querySnapshot.forEach((docSnap) => {
-                    videos.push({ id: docSnap.id, ...docSnap.data() });
-                });
-                videos.sort((a, b) => b.timestamp - a.timestamp);
-                renderVideos();
-            } catch (err) {
-                console.error("Error fetching videos:", err);
-            }
-        }
-
-        function handleFileUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                document.getElementById('postContent').value = e.target.result;
-            };
-            reader.readAsText(file);
-        }
-
-        function renderPosts() {
-            const container = document.getElementById('postsContainer');
-            container.innerHTML = '';
-
-            const filteredPosts = activeCategory === 'all' ? posts : posts.filter(p => p.category === activeCategory);
-
-            if (filteredPosts.length === 0) {
-                container.innerHTML = `<div class="col-span-full text-center py-10 text-slate-400">ഈ വിഭാഗത്തിൽ രചനകളൊന്നും ലഭ്യമായിട്ടില്ല.</div>`;
-                return;
-            }
-
-            filteredPosts.forEach(post => {
-                const card = document.createElement('div');
-                card.className = 'bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition flex flex-col justify-between';
-                card.innerHTML = `
-                    <div>
-                        <div class="flex justify-between items-center mb-2">
-                            <span class="px-2.5 py-0.5 bg-amber-100 text-amber-800 text-xs font-semibold rounded-full">${post.category}</span>
-                            <span class="text-xs text-slate-400">${post.date}</span>
-                        </div>
-                        <h3 class="font-bold text-lg text-slate-800 mb-1 hover:text-amber-800 cursor-pointer" onclick="viewPost('${post.id}')">${post.title}</h3>
-                        <p class="text-xs text-slate-500 mb-3">എഴുതിയത്: <span class="font-medium text-slate-700">${post.author}</span></p>
-                        <p class="text-slate-600 text-sm line-clamp-3 leading-relaxed mb-4">${post.content}</p>
-                    </div>
-                    <div class="flex justify-between items-center border-t border-slate-100 pt-3">
-                        <button onclick="viewPost('${post.id}')" class="text-amber-800 hover:text-amber-900 text-xs font-bold flex items-center gap-1">
-                            പൂർണ്ണമായി വായിക്കുക <i class="fa-solid fa-arrow-right text-[10px]"></i>
-                        </button>
-                        <button onclick="deletePost('${post.id}')" class="text-slate-300 hover:text-red-500 text-xs" title="ഡിലീറ്റ് ചെയ്യുക">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        function renderVideos() {
-            const container = document.getElementById('videosContainer');
-            container.innerHTML = '';
-
-            if (videos.length === 0) {
-                container.innerHTML = `<div class="col-span-full text-center py-6 text-slate-400">വീഡിയോകളൊന്നും ചേർത്തിട്ടില്ല.</div>`;
-                return;
-            }
-
-            videos.forEach(v => {
-                const card = document.createElement('div');
-                card.className = 'bg-slate-50 rounded-lg overflow-hidden border border-slate-200 shadow-sm';
-                card.innerHTML = `
-                    <div class="aspect-video w-full">
-                        <iframe class="w-full h-full" src="${v.url}" frameborder="0" allowfullscreen></iframe>
-                    </div>
-                    <div class="p-3 flex justify-end">
-                        <button onclick="deleteVideo('${v.id}')" class="text-slate-400 hover:text-red-500 text-xs">
-                            <i class="fa-solid fa-trash-can"></i> ഡിലീറ്റ് ചെയ്യുക
-                        </button>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        // Add Post Action (Cloud Save)
-        async function handlePublish(e) {
-            e.preventDefault();
-            const pass = document.getElementById('adminPassword').value;
-            const currentPass = await getAdminPassword();
-
-            if (pass !== currentPass) {
-                alert('തെറ്റായ അഡ്മിൻ പാസ്‌വേഡ്!');
-                return;
-            }
-
-            const title = document.getElementById('postTitle').value;
-            const author = document.getElementById('postAuthor').value;
-            const category = document.getElementById('postCategory').value;
-            const content = document.getElementById('postContent').value;
-
-            try {
-                await window.addDoc(window.collection(window.db, "posts"), {
-                    title,
-                    author,
-                    category,
-                    content,
-                    timestamp: Date.now(),
-                    date: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
-                });
-
-                alert('രചന വിജയകരമായി പബ്ലിഷ് ചെയ്തു!');
-                closePublishModal();
-                document.getElementById('publishForm').reset();
-                await fetchPosts();
-            } catch (err) {
-                alert('പബ്ലിഷ് ചെയ്യുന്നതിൽ പരാജയപ്പെട്ടു: ' + err.message);
-            }
-        }
-
-        // Add Video Action (Cloud Save)
-        async function handleVideoAdd(e) {
-            e.preventDefault();
-            const pass = document.getElementById('videoAdminPassword').value;
-            const currentPass = await getAdminPassword();
-
-            if (pass !== currentPass) {
-                alert('തെറ്റായ അഡ്മിൻ പാസ്‌വേഡ്!');
-                return;
-            }
-
-            let url = document.getElementById('videoUrl').value;
-            if (url.includes('watch?v=')) {
-                url = url.replace('watch?v=', 'embed/');
-            } else if (url.includes('youtu.be/')) {
-                url = url.replace('youtu.be/', 'youtube.com/embed/');
-            }
-
-            try {
-                await window.addDoc(window.collection(window.db, "videos"), {
-                    url,
-                    timestamp: Date.now()
-                });
-
-                alert('വീഡിയോ വിജയകരമായി ആഡ് ചെയ്തു!');
-                closeVideoModal();
-                document.getElementById('videoForm').reset();
-                await fetchVideos();
-            } catch (err) {
-                alert('വീഡിയോ ആഡ് ചെയ്യുന്നതിൽ പരാജയപ്പെട്ടു: ' + err.message);
-            }
-        }
-
-        // Change Password Action
-        async function handlePasswordChange(e) {
-            e.preventDefault();
-            const curr = document.getElementById('currPass').value;
-            const newP = document.getElementById('newPass').value;
-            const currentPass = await getAdminPassword();
-
-            if (curr !== currentPass) {
-                alert('നിലവിലെ പാസ്‌വേഡ് തെറ്റാണ്!');
-                return;
-            }
-
-            try {
-                await window.setDoc(window.doc(window.db, "settings", "admin"), { password: newP });
-                alert('അഡ്മിൻ പാസ്‌വേഡ് വിജയകരമായി മാറ്റി!');
-                closeSettingsModal();
-                document.getElementById('settingsModal').querySelector('form').reset();
-            } catch (err) {
-                alert('പാസ്‌വേഡ് മാറ്റാൻ കഴിഞ്ഞില്ല: ' + err.message);
-            }
-        }
-
-        // Delete Actions
-        async function deletePost(id) {
-            const pass = prompt('ഡിലീറ്റ് ചെയ്യാൻ അഡ്മിൻ പാസ്‌വേഡ് നൽകുക:');
-            const currentPass = await getAdminPassword();
-            if (pass === currentPass) {
-                try {
-                    await window.deleteDoc(window.doc(window.db, "posts", id));
-                    await fetchPosts();
-                } catch (e) {
-                    alert('ഡിലീറ്റ് ചെയ്യാൻ കഴിഞ്ഞില്ല.');
-                }
-            } else if (pass !== null) {
-                alert('തെറ്റായ പാസ്‌വേഡ്!');
-            }
-        }
-
-        async function deleteVideo(id) {
-            const pass = prompt('ഡിലീറ്റ് ചെയ്യാൻ അഡ്മിൻ പാസ്‌വേഡ് നൽകുക:');
-            const currentPass = await getAdminPassword();
-            if (pass === currentPass) {
-                try {
-                    await window.deleteDoc(window.doc(window.db, "videos", id));
-                    await fetchVideos();
-                } catch (e) {
-                    alert('ഡിലീറ്റ് ചെയ്യാൻ കഴിഞ്ഞില്ല.');
-                }
-            } else if (pass !== null) {
-                alert('തെറ്റായ പാസ്‌വേഡ്!');
-            }
-        }
-
-        // Modal Controllers
-        function openPublishModal() { document.getElementById('publishModal').classList.remove('hidden'); }
-        function closePublishModal() { document.getElementById('publishModal').classList.add('hidden'); }
-        function openVideoModal() { document.getElementById('videoModal').classList.remove('hidden'); }
-        function closeVideoModal() { document.getElementById('videoModal').classList.add('hidden'); }
-        function openSettingsModal() { document.getElementById('settingsModal').classList.remove('hidden'); }
-        function closeSettingsModal() { document.getElementById('settingsModal').classList.add('hidden'); }
-
-        function viewPost(id) {
-            const post = posts.find(p => p.id === id);
-            if (!post) return;
-
-            document.getElementById('viewCategory').innerText = post.category;
-            document.getElementById('viewTitle').innerText = post.title;
-            document.getElementById('viewAuthor').innerText = `എഴുതിയത്: ${post.author} | ${post.date}`;
-            document.getElementById('viewContent').innerText = post.content;
-            document.getElementById('viewModal').classList.remove('hidden');
-        }
-        function closeViewModal() { document.getElementById('viewModal').classList.add('hidden'); }
-
-        function filterCategory(cat) {
-            activeCategory = cat;
-            document.querySelectorAll('.category-btn').forEach(btn => {
-                btn.classList.remove('bg-amber-800', 'text-white');
-                btn.classList.add('bg-slate-200', 'text-slate-750');
-            });
-            event.target.classList.remove('bg-slate-200', 'text-slate-750');
-            event.target.classList.add('bg-amber-800', 'text-white');
-            renderPosts();
-        }
-    </script>
 </body>
 </html>
 
+ 
