@@ -11,7 +11,7 @@
     <!-- Google Fonts (Anek Malayalam) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Anek+Malayalam:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Anek+Malayalam:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <!-- Mammoth.js for Word (.docx) file reading -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
@@ -21,14 +21,13 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        
         const firebaseConfig = {
   apiKey: "AIzaSyBxVEshiyxo4DblNeI3EJ9HBpbAFxQgqIQ",
   authDomain: "keralatalk.firebaseapp.com",
   projectId: "keralatalk",
   storageBucket: "keralatalk.firebasestorage.app",
   messagingSenderId: "812587522136",
-  appId: "1:812587522136:web:b5bacb0abd089607e3d22d",
+  appId: "1:812587522136:web:b5bacb0abd089607e3d22d"
 };
 
 
@@ -53,19 +52,18 @@
             try {
                 const statsRef = doc(db, "settings", "stats");
                 const statsDoc = await getDoc(statsRef);
-                let currentViews = 1200;
+                let currentViews = 1250;
                 if (statsDoc.exists()) {
-                    // Check session storage so page refreshes in same session don't spam count
                     if (!sessionStorage.getItem('visited')) {
-                        currentViews = (statsDoc.data().totalViews || 1200) + 1;
+                        currentViews = (statsDoc.data().totalViews || 1250) + 1;
                         await setDoc(statsRef, { totalViews: currentViews }, { merge: true });
                         sessionStorage.setItem('visited', 'true');
                     } else {
-                        currentViews = statsDoc.data().totalViews || 1200;
+                        currentViews = statsDoc.data().totalViews || 1250;
                     }
                 } else {
-                    await setDoc(statsRef, { totalViews: 1201 });
-                    currentViews = 1201;
+                    await setDoc(statsRef, { totalViews: 1251 });
+                    currentViews = 1251;
                 }
                 const counterEl = document.getElementById('visitorCount');
                 if (counterEl) counterEl.innerText = currentViews;
@@ -97,7 +95,7 @@
                 renderPosts();
             } catch (err) {
                 console.error("Error fetching posts:", err);
-                document.getElementById('postsContainer').innerHTML = `<div class="col-span-full text-center py-12 text-red-400 bg-white rounded-2xl shadow-sm">ഡാറ്റ ലോഡ് ചെയ്യുന്നതിൽ ചെറിയ തടസ്സമുണ്ടായി.</div>`;
+                document.getElementById('postsContainer').innerHTML = `<div class="col-span-full text-center py-12 text-red-400 bg-white rounded-3xl shadow-sm">ഡാറ്റ ലോഡ് ചെയ്യുന്നതിൽ ചെറിയ തടസ്സമുണ്ടായി.</div>`;
             }
         }
 
@@ -169,18 +167,18 @@
             const filteredPosts = activeCategory === 'all' ? posts : posts.filter(p => p.category === activeCategory);
 
             if (filteredPosts.length === 0) {
-                container.innerHTML = `<div class="col-span-full text-center py-16 text-slate-400 bg-white rounded-3xl border border-dashed border-slate-200 shadow-sm"><i class="fa-solid fa-feather text-4xl text-amber-300 mb-3 block"></i>ഈ വിഭാഗത്തിൽ രചനകളൊന്നും ലഭ്യമായിട്ടില്ല.</div>`;
+                container.innerHTML = `<div class="col-span-full text-center py-16 text-slate-400 bg-white rounded-3xl border border-dashed border-slate-200 shadow-sm"><i class="fa-solid fa-feather text-4xl text-amber-500 mb-3 block"></i>ഈ വിഭാഗത്തിൽ രചനകളൊന്നും ലഭ്യമായിട്ടില്ല.</div>`;
                 return;
             }
 
             filteredPosts.forEach(post => {
                 const card = document.createElement('div');
-                card.className = 'bg-white p-7 rounded-3xl border border-slate-100 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between group relative overflow-hidden';
+                card.className = 'bg-white p-7 rounded-3xl border border-slate-100 shadow-lg hover:shadow-2xl transition-all duration-300 flex flex-col justify-between group relative overflow-hidden';
                 card.innerHTML = `
-                    <div class="absolute top-0 left-0 w-2 h-full bg-amber-800 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div class="absolute top-0 left-0 w-2.5 h-full bg-gradient-to-b from-amber-600 to-amber-900 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                     <div>
                         <div class="flex justify-between items-center mb-4">
-                            <span class="px-3.5 py-1 bg-amber-50 text-amber-900 text-xs font-bold rounded-full border border-amber-200/60 shadow-xs">${post.category}</span>
+                            <span class="px-3.5 py-1 bg-amber-50 text-amber-900 text-xs font-bold rounded-full border border-amber-200/80 shadow-xs">${post.category}</span>
                             <span class="text-xs text-slate-400 font-medium flex items-center gap-1"><i class="fa-regular fa-calendar"></i> ${post.date}</span>
                         </div>
                         <h3 class="font-bold text-xl text-slate-900 mb-2.5 group-hover:text-amber-800 cursor-pointer transition line-clamp-2 leading-snug" onclick="window.viewPost('${post.id}')">${post.title}</h3>
@@ -190,7 +188,7 @@
                         <p class="text-slate-600 text-sm line-clamp-3 leading-relaxed mb-6">${post.content}</p>
                     </div>
                     <div class="flex justify-between items-center border-t border-slate-100 pt-4 mt-2">
-                        <button onclick="window.viewPost('${post.id}')" class="text-amber-900 hover:text-amber-950 text-xs font-bold flex items-center gap-2 bg-amber-50/80 px-4 py-2 rounded-xl transition hover:bg-amber-100 shadow-xs">
+                        <button onclick="window.viewPost('${post.id}')" class="text-amber-900 hover:text-amber-950 text-xs font-bold flex items-center gap-2 bg-amber-50 px-4 py-2 rounded-xl transition hover:bg-amber-100 shadow-xs">
                             പൂർണ്ണമായി വായിക്കുക <i class="fa-solid fa-arrow-right text-[10px]"></i>
                         </button>
                         <button onclick="window.deletePost('${post.id}')" class="text-slate-300 hover:text-red-500 text-xs p-2 transition rounded-lg hover:bg-red-50" title="ഡിലീറ്റ് ചെയ്യുക">
@@ -214,7 +212,7 @@
 
             videos.forEach(v => {
                 const card = document.createElement('div');
-                card.className = 'bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-md hover:shadow-lg transition duration-300';
+                card.className = 'bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-lg hover:shadow-xl transition duration-300';
                 card.innerHTML = `
                     <div class="aspect-video w-full bg-slate-900">
                         <iframe class="w-full h-full" src="${v.url}" frameborder="0" allowfullscreen></iframe>
@@ -241,13 +239,13 @@
 
             notices.forEach(n => {
                 const card = document.createElement('div');
-                card.className = 'bg-white p-6 rounded-3xl border border-slate-100 shadow-md hover:shadow-lg transition duration-300 flex flex-col justify-between';
+                card.className = 'bg-white p-6 rounded-3xl border border-slate-100 shadow-lg hover:shadow-xl transition duration-300 flex flex-col justify-between';
                 
                 let mediaElement = '';
                 if(n.fileType && n.fileType.startsWith('image/')) {
                     mediaElement = `<div class="relative overflow-hidden rounded-2xl mb-4 group cursor-pointer bg-slate-100 h-56 flex items-center justify-center shadow-inner" onclick="window.openNoticePreview('${n.fileData}', 'image', '${n.title}')">
                         <img src="${n.fileData}" alt="${n.title}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
-                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-sm font-semibold gap-2 backdrop-blur-xs">
+                        <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-sm font-semibold gap-2 backdrop-blur-xs">
                             <i class="fa-solid fa-expand text-lg"></i> വലുതായി കാണുക
                         </div>
                     </div>`;
@@ -255,7 +253,7 @@
                     mediaElement = `<div class="bg-red-50/70 border border-red-100 p-6 rounded-2xl text-center mb-4 flex flex-col items-center justify-center h-56 cursor-pointer group shadow-inner" onclick="window.openNoticePreview('${n.fileData}', 'pdf', '${n.title}')">
                         <i class="fa-solid fa-file-pdf text-red-600 text-6xl mb-3 group-hover:scale-110 transition duration-300"></i>
                         <span class="text-sm font-bold text-red-900 mb-1">PDF Document</span>
-                        <span class="text-xs text-red-600 underline font-semibold bg-white/80 px-3 py-1 rounded-full shadow-xs">വലുതായി കാണാൻ ക്ലിക്ക് ചെയ്യുക</span>
+                        <span class="text-xs text-red-600 underline font-semibold bg-white/90 px-3 py-1 rounded-full shadow-xs">വലുതായി കാണാൻ ക്ലിക്ക് ചെയ്യുക</span>
                     </div>`;
                 }
 
@@ -525,24 +523,24 @@
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between" onload="if(window.initApp) window.initApp();">
 
-    <!-- Sticky Header with Logo, Title & Live Visitor Counter -->
+    <!-- Sticky Header with Logo, Title, Tagline & Live Visitor Counter -->
     <header class="bg-amber-950 text-amber-50 shadow-xl sticky top-0 z-50 border-b border-amber-900/40 backdrop-blur-md bg-amber-950/95">
-        <div class="max-w-6xl mx-auto px-4 py-3.5 flex flex-wrap justify-between items-center gap-4">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex flex-wrap justify-between items-center gap-4">
             <div class="flex items-center gap-3.5">
-                <div class="w-12 h-12 rounded-2xl overflow-hidden bg-amber-950 flex-shrink-0 shadow-md border-2 border-amber-800">
+                <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl overflow-hidden bg-amber-900 flex-shrink-0 shadow-md border-2 border-amber-700">
                     <img src="138979.jpg" alt="Logo" class="w-full h-full object-cover">
                 </div>
                 <div>
-                    <h1 class="text-2xl font-black tracking-wide text-white leading-tight">BOOK TALK KERALA</h1>
-                    <p class="text-amber-300 text-xs font-medium tracking-wide">ഡിജിറ്റൽ സാഹിത്യ മാഗസിൻ | Honouring Books[span_0](start_span)[span_0](end_span)</p>
+                    <h1 class="text-xl sm:text-2xl font-black tracking-wide text-white leading-tight">BOOK TALK KERALA</h1>
+                    <p class="text-amber-300 text-xs sm:text-sm font-semibold tracking-wide">മാധ്യമ പഠനകേന്ദ്രം (Since 1987) പ്രസിദ്ധീകരിക്കുന്നത്</p>
                 </div>
             </div>
             
             <div class="flex items-center gap-3">
                 <!-- Visitor Counter Badge -->
-                <div class="hidden sm:flex items-center gap-2 bg-amber-900/60 px-3 py-2 rounded-2xl border border-amber-800 text-xs text-amber-200 font-semibold shadow-inner" title="ആകെ സന്ദർശകർ">
+                <div class="hidden sm:flex items-center gap-2 bg-amber-900/60 px-3.5 py-2 rounded-2xl border border-amber-800 text-xs text-amber-200 font-semibold shadow-inner" title="ആകെ സന്ദർശകർ">
                     <i class="fa-solid fa-eye text-amber-400"></i>
-                    <span>വ്യൂസ്: <strong id="visitorCount" class="text-white">...</strong></span>
+                    <span>വ്യൂസ്: <strong id="visitorCount" class="text-white font-bold">...</strong></span>
                 </div>
 
                 <button onclick="window.openPublishModal()" class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all shadow-md flex items-center gap-2 transform hover:-translate-y-0.5">
@@ -594,7 +592,7 @@
             </div>
         </div>
 
-        <!-- Filter Tabs (Including Cinema Review) -->
+        <!-- Filter Tabs -->
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-200 pb-5 mb-8 gap-4">
             <h2 class="text-2xl font-black text-slate-900 flex items-center gap-2.5">
                 <i class="fa-solid fa-book-open text-amber-800"></i> പ്രസിദ്ധീകരിച്ചവ
@@ -671,7 +669,6 @@
                         <option value="കവിത">കവിത</option>
                         <option value="ലേഖനം">ലേഖനം</option>
                         <option value="വാർത്ത">വാർത്ത</option>
-                        <option value="നിരൂപണം">നിരൂപണം</option>
                         <option value="സിനിമ നിരൂപണം">സിനിമ നിരൂപണം</option>
                     </select>
                 </div>
@@ -795,7 +792,7 @@
                     </div>
                     <div>
                         <h2 class="text-base sm:text-lg font-bold tracking-wide text-white leading-tight">BOOK TALK KERALA</h2>
-                        <p class="text-amber-300 text-[10px] font-medium">ഡിജിറ്റൽ സാഹിത്യ മാഗസിൻ</p>
+                        <p class="text-amber-300 text-[10px] font-medium">മാധ്യമ പഠനകേന്ദ്രം (Since 1997) പ്രസിദ്ധീകരിക്കുന്നത്</p>
                     </div>
                 </div>
                 <button onclick="window.closeViewModal()" class="bg-amber-900/60 hover:bg-amber-900 text-white w-10 h-10 rounded-full flex items-center justify-center transition border border-amber-700/50 shadow-xs">
